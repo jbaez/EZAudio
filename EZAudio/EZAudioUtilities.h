@@ -402,6 +402,15 @@ typedef NSRect EZRect;
  */
 + (void)checkResult:(OSStatus)result operation:(const char *)operation;
 
+/**
+ Basic check result function useful for checking each step of the audio setup process
+ This method doesn't exit the app on failure.
+
+ @param result    The OSStatus representing the result of an operation
+ @param operation A string (const char, not NSString) describing the operation taking place (will print if fails)
+ */
++ (BOOL)isResultSuccessful:(OSStatus)result logOnFailure:(const char *)operation;
+
 //------------------------------------------------------------------------------
 
 /**

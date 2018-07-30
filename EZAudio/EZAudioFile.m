@@ -74,7 +74,7 @@ typedef struct
     self.floatConverter = nil;
     pthread_mutex_destroy(&_lock);
     [EZAudioUtilities freeFloatBuffers:self.floatData numberOfChannels:self.clientFormat.mChannelsPerFrame];
-    [EZAudioUtilities checkResult:ExtAudioFileDispose(self.info->extAudioFileRef) operation:"Failed to dispose of ext audio file"];
+    [EZAudioUtilities isResultSuccessful:ExtAudioFileDispose(self.info->extAudioFileRef) logOnFailure:"Failed to dispose of ext audio file"];
     free(self.info);
 }
 
@@ -239,58 +239,67 @@ typedef struct
     // Need a source url
     //
     NSAssert(self.info->sourceURL, @"EZAudioFile cannot be created without a source url!");
-    
+
     //
     // Determine if the file actually exists
     //
     CFURLRef url = self.info->sourceURL;
     NSURL *fileURL = (__bridge NSURL *)(url);
     BOOL fileExists = [[NSFileManager defaultManager] fileExistsAtPath:fileURL.path];
-    
+
     //
     // Create an ExtAudioFileRef for the file handle
     //
     if (fileExists)
     {
-        [EZAudioUtilities checkResult:ExtAudioFileOpenURL(url, &self.info->extAudioFileRef)
-                            operation:"Failed to create ExtAudioFileRef"];
+        if (![EZAudioUtilities isResultSuccessful:ExtAudioFileOpenURL(url, &self.info->extAudioFileRef) logOnFailure:"Failed to create ExtAudioFileRef"])
+        {
+            return NO;
+        }
     }
     else
     {
         return NO;
     }
-    
+
     //
     // Get the underlying AudioFileID
     //
     UInt32 propSize = sizeof(self.info->audioFileID);
-    [EZAudioUtilities checkResult:ExtAudioFileGetProperty(self.info->extAudioFileRef,
-                                                          kExtAudioFileProperty_AudioFile,
-                                                          &propSize,
-                                                          &self.info->audioFileID)
-                        operation:"Failed to get underlying AudioFileID"];
-    
+    if (![EZAudioUtilities isResultSuccessful:ExtAudioFileGetProperty(self.info->extAudioFileRef,
+                                                                      kExtAudioFileProperty_AudioFile,
+                                                                      &propSize,
+                                                                      &self.info->audioFileID) logOnFailure: "Failed to get underlying AudioFileID"])
+    {
+        return NO;
+    }
+
     //
     // Store the file format
     //
     propSize = sizeof(self.info->fileFormat);
-    [EZAudioUtilities checkResult:ExtAudioFileGetProperty(self.info->extAudioFileRef,
-                                                          kExtAudioFileProperty_FileDataFormat,
-                                                          &propSize,
-                                                          &self.info->fileFormat)
-                        operation:"Failed to get file audio format on existing audio file"];
-    
+    if (![EZAudioUtilities isResultSuccessful:ExtAudioFileGetProperty(self.info->extAudioFileRef,
+                                                                      kExtAudioFileProperty_FileDataFormat,
+                                                                      &propSize,
+                                                                      &self.info->fileFormat) logOnFailure:"Failed to get file audio format on existing audio file"])
+    {
+        return NO;
+    }
+
     //
     // Get the total frames and duration
     //
     propSize = sizeof(SInt64);
-    [EZAudioUtilities checkResult:ExtAudioFileGetProperty(self.info->extAudioFileRef,
-                                                          kExtAudioFileProperty_FileLengthFrames,
-                                                          &propSize,
-                                                          &self.info->frames)
-                        operation:"Failed to get total frames"];
+    if (![EZAudioUtilities isResultSuccessful:ExtAudioFileGetProperty(self.info->extAudioFileRef,
+                                                                      kExtAudioFileProperty_FileLengthFrames,
+                                                                      &propSize,
+                                                                      &self.info->frames) logOnFailure:"Failed to get total frames"])
+    {
+        return NO;
+    }
+
     self.info->duration = (NSTimeInterval) self.info->frames / self.info->fileFormat.mSampleRate;
-    
+
     return YES;
 }
 
